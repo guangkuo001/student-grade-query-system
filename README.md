@@ -85,6 +85,26 @@ vercel --prod
 - 已提供 `vercel.json` 和 `api/index.py`，可直接作为 Flask Serverless 部署
 - 当前项目使用 SQLite 仅做成绩查询演示；在 Vercel 上建议后续改成云数据库（如 Supabase / Neon / PlanetScale）
 
+## 更自动化部署（推荐 Render）
+
+本项目已提供 `render.yaml`，可直接用 GitHub 自动部署。
+
+### 一次性配置
+
+1. 打开 [Render Dashboard](https://dashboard.render.com/)
+2. 选择 `New +` -> `Blueprint`
+3. 连接你的 GitHub 仓库：`guangkuo001/student-grade-query-system`
+4. 保持默认配置，点击部署
+
+### 自动化效果
+
+- 每次 push 到 `main`，Render 会自动重新部署
+- 不需要本地再手动运行 `deploy.sh`
+
+### 备注
+
+- 当前 SQLite 适合演示查询；如果后续要做“在线录入/修改成绩”，建议切换到托管数据库（例如 PostgreSQL）
+
 ## 示例学号
 
 - 2026001
