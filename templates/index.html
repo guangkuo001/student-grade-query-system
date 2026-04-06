@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>学生成绩查询系统</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>学生成绩查询系统</h1>
+      <p class="hint">请输入学号进行查询，例如：2026001</p>
+
+      <div class="query-box">
+        <input id="studentId" type="text" placeholder="请输入学号" />
+        <button id="queryBtn">查询</button>
+      </div>
+
+      <section id="result" class="result hidden">
+        <h2>查询结果</h2>
+        <p><strong>学号：</strong><span id="resStudentId"></span></p>
+        <p><strong>姓名：</strong><span id="resName"></span></p>
+        <p><strong>平均分：</strong><span id="resAvg"></span></p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>科目</th>
+              <th>成绩</th>
+            </tr>
+          </thead>
+          <tbody id="scoreBody"></tbody>
+        </table>
+      </section>
+
+      <p id="message" class="message"></p>
+    </main>
+
+    <script>
+      const queryBtn = document.getElementById("queryBtn");
+      const studentIdInput = document.getElementById("studentId");
+      const message = document.getElementById("message");
+      const resultBox = document.getElementById("result");
+      const scoreBody = document.getElementById("scoreBody");
+      const resStudentId = document.getElementById("resStudentId");
+      const resName = document.getElementById("resName");
+      const resAvg = document.getElementById("resAvg");
+
+      async function queryScores() {
+        const studentId = studentIdInput.value.trim();
+        resultBox.classList.add("hidden");
+        message.textContent = "";
+
+        if (!studentId) {
+          message.textContent = "请输入学号后再查询。";
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `/api/query?student_id=${encodeURIComponent(studentId)}`
+          );
+          const data = await response.json();
+
+          if (!response.ok) {
+            message.textContent = data.error || "查询失败，请稍后重试。";
+            return;
+          }
+
+          resStudentId.textContent = data.student_id;
+          resName.textContent = data.name;
+          resAvg.textContent = data.average;
+          scoreBody.innerHTML = "";
+
+          data.scores.forEach((item) => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `<td>${item.subject}</td><td>${item.score}</td>`;
+            scoreBody.appendChild(tr);
+          });
+
+          resultBox.classList.remove("hidden");
+        } catch (err) {
+          message.textContent = "网络异常，请检查服务是否启动。";
+        }
+      }
+
+      queryBtn.addEventListener("click", queryScores);
+      studentIdInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          queryScores();
+        }
+      });
+    </script>
+  </body>
+</html>
