@@ -1,6 +1,6 @@
 # 学生成绩查询系统
 
-一个基于 Flask + SQLite 的简单学生成绩查询系统。
+一个基于 Flask 的学生成绩查询系统，支持 SQLite（本地）和 PostgreSQL（生产）。
 
 ## 功能
 
@@ -8,6 +8,7 @@
 - 展示语文/数学/英语成绩
 - 自动计算平均分
 - 首次运行自动初始化示例数据
+- 支持管理员接口进行增删改（学生/成绩）
 
 ## 快速启动
 
@@ -100,10 +101,63 @@ vercel --prod
 
 - 每次 push 到 `main`，Render 会自动重新部署
 - 不需要本地再手动运行 `deploy.sh`
+- Blueprint 会自动创建 PostgreSQL，并注入 `DATABASE_URL`
 
 ### 备注
 
-- 当前 SQLite 适合演示查询；如果后续要做“在线录入/修改成绩”，建议切换到托管数据库（例如 PostgreSQL）
+- 本地默认使用 SQLite（`grades.db`）
+- Render 线上默认使用 PostgreSQL 持久化
+
+## 管理接口（增删改）
+
+如果设置了环境变量 `ADMIN_TOKEN`，请求头需要带：
+
+```text
+X-Admin-Token: 你的Token
+```
+
+### 新增学生
+
+`POST /api/admin/student`
+
+```json
+{
+  "student_id": "2026999",
+  "name": "赵六"
+}
+```
+
+### 删除学生
+
+`DELETE /api/admin/student/2026999`
+
+### 新增成绩
+
+`POST /api/admin/score`
+
+```json
+{
+  "student_id": "2026001",
+  "subject": "物理",
+  "score": 89
+}
+```
+
+### 修改成绩
+
+`PUT /api/admin/score`
+
+```json
+{
+  "student_id": "2026001",
+  "subject": "数学",
+  "score": 93
+}
+```
+
+### 删除成绩
+
+`DELETE /api/admin/score?student_id=2026001&subject=数学`
 
 ## 示例学号
 
