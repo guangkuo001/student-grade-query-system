@@ -163,6 +163,12 @@ def home():
     return render_template("index.html")
 
 
+@app.route("/admin")
+def admin_page():
+    ensure_db_initialized()
+    return render_template("admin.html")
+
+
 @app.route("/api/query", methods=["GET"])
 def query_scores():
     ensure_db_initialized()
@@ -212,6 +218,47 @@ def query_scores():
             "average": average,
         }
     )
+
+
+@app.route("/api/admin/students", methods=["GET"])
+@auth_required
+def list_students():
+    ensure_db_initialized()
+    conn = get_db_connection()
+    cur = conn.cursor()
+    if IS_POSTGRES:
+        cur.execute("SELECT student_id, name FROM students ORDER BY student_id")
+    else:
+        cur.execute("SELECT student_id, name FROM students ORDER BY student_id")
+    students = cur.fetchall()
+
+    result = []
+    for student in students:
+        student_id = student["student_id"]
+        if IS_POSTGRES:
+            cur.execute(
+                "SELECT subject, score FROM scores WHERE student_id = %s ORDER BY subject",
+                (student_id,),
+            )
+        else:
+            cur.execute(
+                "SELECT subject, score FROM scores WHERE student_id = ? ORDER BY subject",
+                (student_id,),
+            )
+        score_rows = cur.fetchall()
+        result.append(
+            {
+                "student_id": student_id,
+                "name": student["name"],
+                "scores": [
+                    {"subject": row["subject"], "score": row["score"]}
+                    for row in score_rows
+                ],
+            }
+        )
+
+    conn.close()
+    return jsonify(result)
 
 
 @app.route("/api/admin/student", methods=["POST"])

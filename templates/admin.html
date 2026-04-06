@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>成绩管理后台</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>成绩管理后台</h1>
+      <p class="hint">可在此页面进行学生和成绩的增删改。</p>
+      <p class="hint"><a href="/">返回查询首页</a></p>
+
+      <section class="panel">
+        <h2>管理员 Token</h2>
+        <div class="query-box">
+          <input id="adminToken" type="password" placeholder="请输入 ADMIN_TOKEN（可选）" />
+          <button id="saveTokenBtn">保存 Token</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>学生管理</h2>
+        <div class="query-box">
+          <input id="newStudentId" type="text" placeholder="学号" />
+          <input id="newStudentName" type="text" placeholder="姓名" />
+          <button id="addStudentBtn">新增学生</button>
+        </div>
+        <div class="query-box">
+          <input id="deleteStudentId" type="text" placeholder="要删除的学号" />
+          <button id="deleteStudentBtn">删除学生</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>成绩管理</h2>
+        <div class="query-box">
+          <input id="scoreStudentId" type="text" placeholder="学号" />
+          <input id="scoreSubject" type="text" placeholder="科目" />
+          <input id="scoreValue" type="number" placeholder="成绩" />
+          <button id="addScoreBtn">新增成绩</button>
+        </div>
+        <div class="query-box">
+          <input id="updateStudentId" type="text" placeholder="学号" />
+          <input id="updateSubject" type="text" placeholder="科目" />
+          <input id="updateScore" type="number" placeholder="新成绩" />
+          <button id="updateScoreBtn">修改成绩</button>
+        </div>
+        <div class="query-box">
+          <input id="deleteScoreStudentId" type="text" placeholder="学号" />
+          <input id="deleteScoreSubject" type="text" placeholder="科目" />
+          <button id="deleteScoreBtn">删除成绩</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="query-box">
+          <button id="refreshBtn">刷新数据列表</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>学号</th>
+              <th>姓名</th>
+              <th>成绩列表</th>
+            </tr>
+          </thead>
+          <tbody id="studentsBody"></tbody>
+        </table>
+      </section>
+
+      <p id="adminMessage" class="message"></p>
+    </main>
+
+    <script>
+      const adminTokenInput = document.getElementById("adminToken");
+      const saveTokenBtn = document.getElementById("saveTokenBtn");
+      const adminMessage = document.getElementById("adminMessage");
+      const studentsBody = document.getElementById("studentsBody");
+
+      const savedToken = localStorage.getItem("admin_token") || "";
+      adminTokenInput.value = savedToken;
+
+      function getHeaders(withJson = true) {
+        const token = adminTokenInput.value.trim();
+        const headers = {};
+        if (withJson) {
+          headers["Content-Type"] = "application/json";
+        }
+        if (token) {
+          headers["X-Admin-Token"] = token;
+        }
+        return headers;
+      }
+
+      function setMessage(text, isError = true) {
+        adminMessage.textContent = text;
+        adminMessage.style.color = isError ? "#dc2626" : "#059669";
+      }
+
+      async function readJsonSafe(response) {
+        try {
+          return await response.json();
+        } catch (err) {
+          return {};
+        }
+      }
+
+      async function refreshStudents() {
+        const response = await fetch("/api/admin/students", {
+          headers: getHeaders(false),
+        });
+        const data = await readJsonSafe(response);
+
+        if (!response.ok) {
+          setMessage(data.error || "加载列表失败");
+          return;
+        }
+
+        studentsBody.innerHTML = "";
+        data.forEach((student) => {
+          const tr = document.createElement("tr");
+          const scoreText = student.scores.length
+            ? student.scores.map((s) => `${s.subject}: ${s.score}`).join("，")
+            : "暂无成绩";
+          tr.innerHTML = `<td>${student.student_id}</td><td>${student.name}</td><td>${scoreText}</td>`;
+          studentsBody.appendChild(tr);
+        });
+        setMessage("数据已刷新", false);
+      }
+
+      async function requestJson(url, method, payload) {
+        const response = await fetch(url, {
+          method,
+          headers: getHeaders(true),
+          body: payload ? JSON.stringify(payload) : undefined,
+        });
+        return { response, data: await readJsonSafe(response) };
+      }
+
+      async function addStudent() {
+        const studentId = document.getElementById("newStudentId").value.trim();
+        const name = document.getElementById("newStudentName").value.trim();
+        const { response, data } = await requestJson("/api/admin/student", "POST", {
+          student_id: studentId,
+          name,
+        });
+        if (!response.ok) {
+          setMessage(data.error || "新增学生失败");
+          return;
+        }
+        setMessage("新增学生成功", false);
+        await refreshStudents();
+      }
+
+      async function deleteStudent() {
+        const studentId = document.getElementById("deleteStudentId").value.trim();
+        const response = await fetch(`/api/admin/student/${encodeURIComponent(studentId)}`, {
+          method: "DELETE",
+          headers: getHeaders(false),
+        });
+        const data = await readJsonSafe(response);
+        if (!response.ok) {
+          setMessage(data.error || "删除学生失败");
+          return;
+        }
+        setMessage("删除学生成功", false);
+        await refreshStudents();
+      }
+
+      async function addScore() {
+        const studentId = document.getElementById("scoreStudentId").value.trim();
+        const subject = document.getElementById("scoreSubject").value.trim();
+        const score = Number(document.getElementById("scoreValue").value);
+        const { response, data } = await requestJson("/api/admin/score", "POST", {
+          student_id: studentId,
+          subject,
+          score,
+        });
+        if (!response.ok) {
+          setMessage(data.error || "新增成绩失败");
+          return;
+        }
+        setMessage("新增成绩成功", false);
+        await refreshStudents();
+      }
+
+      async function updateScore() {
+        const studentId = document.getElementById("updateStudentId").value.trim();
+        const subject = document.getElementById("updateSubject").value.trim();
+        const score = Number(document.getElementById("updateScore").value);
+        const { response, data } = await requestJson("/api/admin/score", "PUT", {
+          student_id: studentId,
+          subject,
+          score,
+        });
+        if (!response.ok) {
+          setMessage(data.error || "修改成绩失败");
+          return;
+        }
+        setMessage("修改成绩成功", false);
+        await refreshStudents();
+      }
+
+      async function deleteScore() {
+        const studentId = document.getElementById("deleteScoreStudentId").value.trim();
+        const subject = document.getElementById("deleteScoreSubject").value.trim();
+        const response = await fetch(
+          `/api/admin/score?student_id=${encodeURIComponent(studentId)}&subject=${encodeURIComponent(subject)}`,
+          {
+            method: "DELETE",
+            headers: getHeaders(false),
+          }
+        );
+        const data = await readJsonSafe(response);
+        if (!response.ok) {
+          setMessage(data.error || "删除成绩失败");
+          return;
+        }
+        setMessage("删除成绩成功", false);
+        await refreshStudents();
+      }
+
+      saveTokenBtn.addEventListener("click", async () => {
+        localStorage.setItem("admin_token", adminTokenInput.value.trim());
+        setMessage("Token 已保存", false);
+        await refreshStudents();
+      });
+
+      document.getElementById("addStudentBtn").addEventListener("click", addStudent);
+      document.getElementById("deleteStudentBtn").addEventListener("click", deleteStudent);
+      document.getElementById("addScoreBtn").addEventListener("click", addScore);
+      document.getElementById("updateScoreBtn").addEventListener("click", updateScore);
+      document.getElementById("deleteScoreBtn").addEventListener("click", deleteScore);
+      document.getElementById("refreshBtn").addEventListener("click", refreshStudents);
+
+      refreshStudents().catch(() => setMessage("初始化加载失败"));
+    </script>
+  </body>
+</html>
